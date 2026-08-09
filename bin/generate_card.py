@@ -465,9 +465,13 @@ def add_text( asset_path, keyword_data, img, data ):
         dice_img_path = os.path.join( asset_path, 'ruina', dice_type + '.png' )
         dice_img = PIL.Image.open( dice_img_path )
 
-        height = 0
         dice_range = get_keywords( dice['range'], keyword_data )
         dice_effect = dice.get('effect', None)
+
+        height = 0
+        min_height = (font_ascent if font_ascent > dice_img.height else dice_img.height)
+        anchor = min_height // 2
+
         if dice_effect:
             dice_effect = get_keywords( dice_effect, keyword_data )
             effect_offset_x = dice_img.width + draw_keywords( dice_range, draw, font ) + TEXT_SPACER + TEXT_LEFT
@@ -475,20 +479,27 @@ def add_text( asset_path, keyword_data, img, data ):
                     font,
                     dice_effect,
                     TEXT_RIGHT - effect_offset_x )
+
+            height_incr = font_ascent * len(dice_effect)
+            start = 0
+            if height_incr // 2 > anchor:
+                anchor = height_incr // 2
+            else:
+                start = anchor - font_ascent * (len(dice_effect) // 2)
+                if len(dice_effect) % 2 == 1:
+                    start -= (font_ascent + font_descent) // 2
             for keywords in dice_effect:
                 draw_keywords( keywords,
                         draw,
                         font,
                         img=img,
-                        position=( effect_offset_x, current_offset_y + height ),
+                        position=( effect_offset_x, current_offset_y + start + height ),
                         default_color=dice_color,
                         query_width=False )
                 height += font_ascent
-        else:
-            if font_ascent > dice_img.height:
-                height = font_ascent
-            else:
-                height = dice_img.height
+
+        if height < min_height:
+            height = min_height
 
         # Draw range
         draw_keywords( dice_range,
@@ -496,13 +507,13 @@ def add_text( asset_path, keyword_data, img, data ):
             font,
             img=img,
             position=(dice_img.width + TEXT_LEFT,
-            current_offset_y + (height // 2) - ( (font_ascent + font_descent) // 2)),
+            current_offset_y + anchor - ( (font_ascent + font_descent) // 2)),
             default_color=dice_color,
             query_width=False )
 
         # Draw dice icon
         img.alpha_composite( dice_img,
-                dest=(TEXT_LEFT, current_offset_y + (height // 2) - (dice_img.height // 2)) )
+                dest=(TEXT_LEFT, current_offset_y + anchor - (dice_img.height // 2)) )
 
         current_offset_y += height + DICE_SPACER
 
