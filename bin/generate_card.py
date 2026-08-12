@@ -71,6 +71,7 @@ def init_data(parent_dir, file_path):
     return data
 
 # Perhaps there could be a better interface for the additional paths...
+# Currently, they prevent having both caching and a simple implementation
 def get_field(data, field, relative=False, additional_paths=[]):
     if field not in data:
         # Resolve parent
@@ -82,21 +83,16 @@ def get_field(data, field, relative=False, additional_paths=[]):
 
         # If a parent exists, try to get data from it
         if parent_data is not None:
-            field_data = get_field(parent_data, field, relative)
-            if field_data is not None and relative:
-                field_data = os.path.join(os.path.dirname(data['parent']), field_data)
-            data[field] = field_data
+            field_data = get_field(parent_data, field, relative, additional_paths)
+            return field_data
 
-    if field in data:
-        result = data[field]
-        while result is not None and additional_paths:
-            result = result.get(additional_paths.pop(0), None)
+    result = data.get(field, None)
+    while result is not None and additional_paths:
+        result = result.get(additional_paths.pop(0), None)
 
-        if result is not None and relative:
-            return os.path.join(data['dir'], result)
-        return result
-
-    return None
+    if result is not None and relative:
+        return os.path.join(data['dir'], result)
+    return result
 
 def get_layer(current_layer, name, partial=False):
     if not current_layer.is_group():
@@ -128,7 +124,7 @@ def edit_dice_number(dice_number, data):
         found_type = False
         search_type = get_field(data, 'dice')[i]['type'].lower()
 
-        for dice_type in dice_layer_i:
+        for dice_type in (dice_layer_i if dice_layer_i is not None else found_num):
             if search_type == dice_type.name.lower().replace(' ', '_'):
                 found_type = True
                 dice_type.visible = True
