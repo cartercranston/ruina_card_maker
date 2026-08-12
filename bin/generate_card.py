@@ -4,6 +4,7 @@ import hashlib
 import json
 from math import ceil
 import os
+import re
 import sys
 
 import PIL
@@ -461,7 +462,7 @@ def add_text( asset_path, keyword_data, img, data ):
         dice_img_path = os.path.join( asset_path, 'ruina', dice_type + '.png' )
         dice_img = PIL.Image.open( dice_img_path )
 
-        dice_range = get_keywords( dice['range'], keyword_data )
+        dice_range = get_keywords( re.sub(r'\\W+', '', dice['range']), keyword_data )
         dice_effect = dice.get('effect', None)
 
         height = 0
