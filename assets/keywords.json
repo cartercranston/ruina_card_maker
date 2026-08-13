@@ -254,5 +254,15 @@
             "path" : "./tabletop/d20.png",
             "convert_color" :  true
         }
+    },
+    "single_ally" : {
+        "text" : {
+            "content" : "Single Ally"
+        }
+    },
+    "all_allies" : {
+        "text" : {
+            "content" : "All Allies"
+        }
     }
 }

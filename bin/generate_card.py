@@ -30,11 +30,14 @@ TITLE_TEXT_FONT = 'P22 Johnston Underground Regular.ttf'
 TITLE_TEXT_SIZE = 40
 DESC_TEXT_FONT = 'NotoSansDisplay-SemiCondensed.ttf'
 DESC_TEXT_SIZE = 32
+AB_TEXT_SIZE = 30
 COST_TEXT_FONT = 'P22 Johnston Underground Regular.ttf'
 COST_TEXT_SIZE = 146
+AB_COST_TEXT_SIZE = 70
 
-TEXT_LEFT = 550
-TEXT_UP = 65
+TEXT_LEFT = 555
+COMBAT_PAGE_TEXT_UP = 65
+AB_TEXT_UP = 80
 TEXT_RIGHT = 950
 TEXT_SPACER = 15
 DICE_SPACER = 10
@@ -42,9 +45,13 @@ DICE_SPACER = 10
 TITLE_ANGLE_DEG = 11
 TITLE_CENTER_X = 250
 TITLE_CENTER_Y = 200
+AB_TITLE_CENTER_X = 265
+AB_TITLE_CENTER_Y = 155
 
 COST_X = 80
 COST_Y = 39
+AB_COST_X = 920
+AB_COST_Y = 665
 
 MINI_UP = 20
 MINI_LEFT = 20
@@ -150,6 +157,10 @@ def edit_page_cost(page_cost, data):
     get_layer(page_cost, 'Cost Grit', partial=True).visible = False
     get_layer(page_cost, 'Cost').visible = False
 
+def edit_page_level(page, data):
+    levels = get_layer(page, 'Page Tier')
+    get_layer(levels, get_field( data, 'level' )).visible = True
+
 def edit_page_rarity(page_rarity, data):
     found = False
     search = get_field(data, 'rarity').lower()
@@ -169,7 +180,7 @@ def edit_page_base(psd, page_base, data):
     # Not recommended to be false at the moment if not using the `-m` option
     get_layer(page_base, 'Do Not Delete').visible = get_field(data, 'grit') is not False # This is the grit
 
-    sample_img_layer = get_layer(page_base, '176m2')
+    sample_img_layer = get_layer(page_base, 'Image Goes Here' if is_abnormality_page else '176m2')
     sample_img_layer.visible = False # Remove default image
 
     bbox = sample_img_layer.bbox
@@ -197,6 +208,15 @@ def edit_page_base(psd, page_base, data):
 
         page_base.insert(0, page_art) # Lowest in ordering
 
+def edit_abnormality_page(psd, ab_page, data, polarity):
+    assert(polarity in ('Positive', 'Negative'))
+    ab_page.visible = True
+    layer = get_layer(ab_page, polarity)
+    layer.visible = True
+    get_layer(layer, 'Texts').visible = False
+    edit_page_level(layer, data)
+    edit_page_base(psd, layer, data, is_abnormality_page=True)
+
 def edit_combat_page(psd, combat_page, data):
     # No need for notes
     get_layer(combat_page, 'Notes', partial=True).visible = False
@@ -208,12 +228,19 @@ def edit_combat_page(psd, combat_page, data):
     edit_page_base(psd, get_layer(combat_page, 'Card Base', partial=True), data)
 
 def edit_page_class(psd, data):
-    # No support for abno pages yet
-    get_layer(psd, 'Abnormality Pages').visible = False
-
+    card_type = get_field( data, 'type' ).lower()
+    ab_page = get_layer(psd, 'Abnormality Pages')
+    ab_page.visible = False
     combat_page = get_layer(psd, 'Combat Pages')
-    combat_page.visible = True
-    edit_combat_page(psd, combat_page, data)
+    combat_page.visible = False
+    if card_type == "happy":
+        edit_abnormality_page(psd, ab_page, data, 'Positive')
+    elif card_type == "sad":
+        ab_page.visible = True
+        edit_abnormality_page(psd, ab_page, data, 'Negative')
+    else:
+        combat_page.visible = True
+        edit_combat_page(psd, combat_page, data)
 
 def add_title(img, data):
     # Strategy: Create a new image, draw text, rotate, draw over
@@ -224,7 +251,10 @@ def add_title(img, data):
     draw = PIL.ImageDraw.Draw(text_layer)
     font = find_font(TITLE_TEXT_FONT, TITLE_TEXT_SIZE)
 
-    center = ( TITLE_CENTER_X, TITLE_CENTER_Y )
+    if get_field( data, 'type').lower() in ('happy', 'sad'):
+        center = ( AB_TITLE_CENTER_X, AB_TITLE_CENTER_Y )
+    else:
+        center = ( TITLE_CENTER_X, TITLE_CENTER_Y )
     draw.multiline_text( center,
             get_field(data, 'name'),
             font=font,
@@ -238,22 +268,39 @@ def add_title(img, data):
 
     return PIL.Image.alpha_composite( img, text_layer )
 
-def add_cost( asset_path, img, data ):
+def add_cost( asset_path, img, data, is_abnormality_page=False ):
     draw = PIL.ImageDraw.Draw( img )
-    font = find_font( COST_TEXT_FONT, COST_TEXT_SIZE )
 
-    cost_grit_path, cost_grit_stroke_fill = {
-            'paperback' : ('cost_grit_paperback.png', '#9FE195'),
-            'hardcover' : ('cost_grit_hardcover.png', '#9FC3EF'),
-            'limited' : ('cost_grit_limited.png', '#B78BE5'),
-            "objet d'art" : ('cost_grit_objet.png', '#FFCB69'),
-            'e.g.o' : ('cost_grit_ego.png', '#FFFFDB'),
-            }[get_field(data, 'rarity').lower()]
+    if is_abnormality_page:
+        cost_grit_path = 'cost_grit_ego.png'
+        cost_grit_stroke_fill = {
+            'happy' : '#00ff00',
+            'sad' : '#ff0000',
+        }[get_field(data, 'type').lower()]
+        cost_x = AB_COST_X
+        cost_y = AB_COST_Y
+        font = find_font( COST_TEXT_FONT, AB_COST_TEXT_SIZE )
+    else:
+        font = find_font( COST_TEXT_FONT, COST_TEXT_SIZE )
+
+        cost_grit_path, cost_grit_stroke_fill = {
+                'paperback' : ('cost_grit_paperback.png', '#9FE195'),
+                'hardcover' : ('cost_grit_hardcover.png', '#9FC3EF'),
+                'limited' : ('cost_grit_limited.png', '#B78BE5'),
+                "objet d'art" : ('cost_grit_objet.png', '#FFCB69'),
+                'e.g.o' : ('cost_grit_ego.png', '#FFFFDB'),
+                }[get_field(data, 'rarity').lower()]
+        cost_x = COST_X
+        cost_y = COST_Y
 
     cost_grit_path = os.path.join( asset_path, 'cost_grit', cost_grit_path )
-            
-    draw.text( (COST_X, COST_Y),
-        str(get_field(data, 'cost')),
+
+    if is_abnormality_page:
+        text = str(get_field(data, 'rate')).removeprefix("-") 
+    else:
+        text = str(get_field(data, 'cost'))
+    draw.text( (cost_x, cost_y),
+        text,
         font=font,
         fill=COLOR_COST,
         stroke_width=5,
@@ -431,12 +478,16 @@ def wrap_keywords( draw, font, keywords, width ):
 
 def add_text( asset_path, keyword_data, img, data ):
     draw = PIL.ImageDraw.Draw( img )
-    font = find_font( DESC_TEXT_FONT, DESC_TEXT_SIZE )
-    font_ascent, font_descent = font.getmetrics()
+    if get_field( data, 'type' ).lower() in ('happy', 'sad'):
+        font = find_font( DESC_TEXT_FONT, AB_TEXT_SIZE )
+        current_offset_y = AB_TEXT_UP
+    else:
+        font = find_font( DESC_TEXT_FONT, DESC_TEXT_SIZE )
+        current_offset_y = COMBAT_PAGE_TEXT_UP
+    font_ascent, font_descent = font.getmetrics()    
 
     # First, add the preamble, if it exists
     preamble = get_field( data, 'preamble' )
-    current_offset_y = TEXT_UP
     if preamble:
         preamble = get_keywords( preamble, keyword_data )
         preamble = wrap_keywords( draw, font, preamble, TEXT_RIGHT - TEXT_LEFT )
@@ -451,16 +502,34 @@ def add_text( asset_path, keyword_data, img, data ):
             current_offset_y += font_ascent
         current_offset_y += DICE_SPACER
 
-    # Then add all the dice
-    for dice in get_field( data, 'dice' ):
-        dice_type = dice['type'].lower()
-        if dice_type in ['block', 'block_counter', 'evade', 'evade_counter']:
-            dice_color = COLOR_DEFENSE
-        else:
-            dice_color = COLOR_OFFENSE
+    is_abnormality_page = get_field( data, 'type').lower() in ('happy', 'sad')
+    if is_abnormality_page:
+        text = get_field( data, 'text' )
+        if text:
+            text = get_keywords( text, keyword_data )
+            text = wrap_keywords( draw, font, text, TEXT_RIGHT - TEXT_LEFT )
+            for keywords in text:
+                draw_keywords( keywords,
+                        draw,
+                        font,
+                        img=img,
+                        position=( TEXT_LEFT, current_offset_y ),
+                        default_color=COLOR_DESC,
+                        query_width=False )
+                current_offset_y += font_ascent
+            current_offset_y += DICE_SPACER
 
-        dice_img_path = os.path.join( asset_path, 'ruina', dice_type + '.png' )
-        dice_img = PIL.Image.open( dice_img_path )
+    else:
+        # Then add all the dice
+        for dice in get_field( data, 'dice' ):
+            dice_type = dice['type'].lower()
+            if dice_type in ['block', 'block_counter', 'evade', 'evade_counter']:
+                dice_color = COLOR_DEFENSE
+            else:
+                dice_color = COLOR_OFFENSE
+
+            dice_img_path = os.path.join( asset_path, 'ruina', dice_type + '.png' )
+            dice_img = PIL.Image.open( dice_img_path )
 
         dice_range = get_keywords( re.sub(r'\\W+', '', dice['range']), keyword_data )
         dice_effect = dice.get('effect', None)
@@ -527,6 +596,7 @@ def main(data_path, output_path, asset_path, keyword_path, is_mini=False):
     psd = PSDImage.open(psd_path)
     data = init_data('', data_path)
     keyword_data = init_data('', keyword_path)
+    card_type = get_field( data, 'type' ).lower()
 
     # Toggle layers
     edit_page_class(psd, data)
@@ -536,7 +606,7 @@ def main(data_path, output_path, asset_path, keyword_path, is_mini=False):
 
     # Add custom title and text
     img = add_title( img, data )
-    img = add_cost( asset_path, img, data )
+    img = add_cost( asset_path, img, data, (card_type in ('happy', 'sad')) )
 
     if is_mini:
         # Crop the image to minify it

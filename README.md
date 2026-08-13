@@ -42,7 +42,7 @@ Cards can be defined in the JSON format.
 See a card in `data/test/` for an example.
 You can create your own cards in `data/`.
 
-Format:
+Format for Combat Pages:
 - parent: if defined, inherits from another card. See `data/test/prepared_mind_lulu.json` for an example. This is specified as a **relative** path from this json file.
 - name: Name of the card
 - cost: Light cost of the card
@@ -55,6 +55,15 @@ Format:
     - type: One of ["slash", "pierce", "blunt", "block", "evade", "slash\_counter", "pierce\_counter", "blunt\_counter", "block\_counter", "evade\_counter"]
     - range: **text** for the roll range of the dice
     - effect: optional, the effect text.
+
+Format for Abnormality Pages:
+- parent: see above
+- name: Name of the card
+- rate: I'm not sure what this is for, but it's listed on Tiphereth for every abnormality page
+- type: Either 'happy' or 'sad'
+- grit: see above
+- art: **relative** path to the image to use in the card
+- text: The card's effects
 
 For the preamble and dice, one can specify defined keywords by typing e.g. `{burn}` for the Burn keyword.
 See a list of the default keywords in `assets/keywords.json`.
